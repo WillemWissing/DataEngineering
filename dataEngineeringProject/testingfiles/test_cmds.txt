@@ -1,0 +1,80 @@
+
+docker-compose -f airflow/docker-compose.yml -f hadoop/docker-compose.yml -f kafka/docker-compose.yml -f spark/docker-compose.yml -f trino/docker-compose.yml -f hive/docker-compose.yml  up --build
+ docker system prune -a --volumes
+
+kafka-topics -list --bootstrap-server kafka:9092
+kafka-console-consumer --bootstrap-server kafka:9092 --topic data-ingestion-topic --from-beginning
+kafka-console-consumer --bootstrap-server kafka:9092 --topic data-ingestion-topic --from-beginning --max-messages 10 --property print.key=true --property print.value=true
+
+
+connector cmds
+curl -X POST -H "Content-Type: application/json" --data @/etc/kafka-connect/connect-hdfs-sink.json http://localhost:8083/connectors
+
+
+curl -X GET http://localhost:8083/connectors
+curl -X DELETE http://localhost:8083/connectors/hdfs-sink
+
+
+spark submit
+spark-submit --master spark://spark-master:7077 --packages org.apache.spark:spark-avro_2.12:3.5.2 /etc/spark/hdfs_processing_avro_out.py
+spark-submit --master spark://spark-master:7077  /opt/airflow/pyfiles/test_application.py
+spark-submit --master spark://spark-master:7077  /opt/test.py
+
+
+
+hdfs dfs -get /kafka/topics/data-ingestion-topic/partition=0/data-ingestion-topic+0+0000000000+0000000000.avro
+hdfs dfs -rm /kafka/topics/data-ingestion-topic/partition=0/*.avro
+
+hdfs dfs -get /user/hive/warehouse/schemafile.avsc
+
+
+java -jar avro-tools-1.10.2.jar getschema data-ingestion-topic+0+0000000000+0000000000.avro
+java -jar avro-tools-1.10.2.jar getschema part-00000-6475a360-8b87-4ebd-b4c9-d3c18abbf485-c000.avro
+
+
+hdfs dfs -mkdir -p /kafka/topics
+hdfs dfs -mkdir -p /kafka/logs
+hdfs dfs -mkdir -p /spark-logs
+
+
+curl -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json"     --data @/schemas/avro_schema.json     http://localhost:8081/subjects/data-ingestion-topic-value/versions
+curl -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json"     --data @/schemas/avro_schema2.json     http://localhost:8081/subjects/data-ingestion-topic2-value/versions
+curl -X GET http://localhost:8081/subjects
+
+
+curl -X GET "http://schema-registry:8081/subjects/data-ingestion-topic-value/versions/latest" -H "Accept: application/json" > /tmp/schema.avsc
+hdfs dfs -put /tmp/schema.avsc /user/hive/schema.avsc
+
+
+hive
+CREATE EXTERNAL TABLE crimeData
+ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.avro.AvroSerDe'
+STORED AS INPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat'
+OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat'
+LOCATION 'hdfs://namenode:9000/kafka/topics/output'
+TBLPROPERTIES (
+    'avro.schema.url'='hdfs://namenode:9000/user/hive/warehouse/schemafile.avsc'
+);
+
+
+
+trino
+SELECT * FROM hive.default.crimeData LIMIT 10;
+
+
+sentry createuser --email admin@example.com --password mypassword --superuser
+
+sentry:
+sentry shell
+from sentry import options
+options.set("system.url-prefix", "http://sentry-sentry-1:9000")
+options.set("system.url-prefix", "http://localhost:9010")
+
+
+
+
+spark-submit --master spark://spark-master:7077 /etc/spark/sparkErrorJob.py
+
+spark-submit --master spark://spark-master:7077 --name arrow-spark --verbose /opt/airflow/pyfiles/test_application.py
+
+echo "http://88b656adedca4b4b9f1f3b3e365a6be7@sentry-sentry-1:9000/1" | tee /etc/spark/sentry_dsn.txt > /dev/null

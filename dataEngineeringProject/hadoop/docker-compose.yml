@@ -1,0 +1,123 @@
+services:
+
+  hadoop-base:
+    build:
+      context: base
+      dockerfile: Dockerfile
+    container_name: hadoop-base
+    environment:
+      - HADOOP_HOME=/opt/hadoop-${HADOOP_VERSION}
+      - HADOOP_CONF_DIR=/etc/hadoop
+      - JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - HDFS_CONF_dfs_namenode_rpc___address=namenode:8020
+      - HDFS_CONF_dfs_namenode_http___address=0.0.0.0:9870
+      - MULTIHOMED_NETWORK=1
+    networks:
+      - data-pipeline
+    entrypoint: ["/entrypoint.sh"]
+
+
+  namenode:
+    build:
+      context: namenode
+      dockerfile: Dockerfile
+    container_name: namenode
+    restart: always
+    ports:
+      - 9870:9870      # NameNode HTTP UI
+      - 9000:9000      # HDFS Data Transfer
+      - 8020:8020      # NameNode RPC
+    environment:
+      - CLUSTER_NAME=test
+    env_file:
+      - ./hadoop.env
+    volumes:
+      - hadoop_config:/etc/hadoop
+    networks:
+      - data-pipeline
+
+  datanode1:
+    build:
+      context: ./datanode1
+      dockerfile: Dockerfile
+    container_name: datanode1
+    restart: always
+    volumes:
+      - hadoop_config:/etc/hadoop
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+    env_file:
+      - ./hadoop.env
+    networks:
+      - data-pipeline
+
+  
+  datanode2:
+    build:
+      context: ./datanode2
+      dockerfile: Dockerfile
+    container_name: datanode2
+    restart: always
+    volumes:
+      - hadoop_config:/etc/hadoop
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+    env_file:
+      - ./hadoop.env
+    networks:
+      - data-pipeline
+  
+  resourcemanager:
+    build:
+      context: ./resourcemanager
+      dockerfile: Dockerfile
+    container_name: resourcemanager
+    restart: always
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode1:9864 datanode2:9864"
+    volumes:
+      - hadoop_config:/etc/hadoop
+    env_file:
+      - ./hadoop.env
+    networks:
+      - data-pipeline
+
+  nodemanager1:
+    build:
+      context: ./nodemanager
+      dockerfile: Dockerfile
+    container_name: nodemanager
+    restart: always
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode1:9864 datanode2:9864 resourcemanager:8088"
+    env_file:
+      - ./hadoop.env
+    volumes:
+      - hadoop_config:/etc/hadoop
+    networks:
+      - data-pipeline
+
+  
+  historyserver:
+    build:
+      context: ./historyserver
+      dockerfile: Dockerfile
+    container_name: historyserver
+    restart: always
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode1:9864 datanode2:9864 resourcemanager:8088"
+    volumes:
+      - hadoop_config:/etc/hadoop
+    env_file:
+      - ./hadoop.env
+    networks:
+      - data-pipeline
+
+  
+volumes:
+  hadoop_config:
+
+networks:
+  data-pipeline:
+    external: true

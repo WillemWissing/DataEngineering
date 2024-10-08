@@ -1,0 +1,61 @@
+services:
+  spark-master:
+    build:
+      dockerfile: Dockerfile
+    container_name: spark-master
+    ports:
+      - "8080:8080"  # Web UI
+      - "7077:7077"  # Spark Master port
+    environment:
+      SPARK_MODE: master
+      HADOOP_CONF_DIR: /etc/hadoop
+    volumes:
+      - hadoop_hadoop_config:/etc/hadoop
+    networks:
+      - data-pipeline
+
+      
+  spark-worker:
+    build:
+      dockerfile: Dockerfile
+    container_name: spark-worker
+    ports:
+      - "8081:8081"  # Web UI
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_MEMORY: 4g
+      HADOOP_CONF_DIR: /etc/hadoop
+    volumes:
+      - hadoop_hadoop_config:/etc/hadoop
+    depends_on:
+      - spark-master
+    networks:
+      - data-pipeline
+
+       
+  spark-submit:
+    build:
+      dockerfile: Dockerfile
+    container_name: spark-submit
+    environment:
+      SPARK_MODE: submit
+      SPARK_MASTER_URL: spark://spark-master:7077
+      HADOOP_CONF_DIR: /etc/hadoop
+    volumes:
+      - hadoop_hadoop_config:/etc/hadoop
+      - spark_config:/etc/spark
+    depends_on:
+      - spark-master
+      - spark-worker
+    networks:
+      - data-pipeline
+      
+volumes:
+  spark_config:
+  hadoop_hadoop_config:
+    external: true
+
+networks:
+  data-pipeline:
+    external: true

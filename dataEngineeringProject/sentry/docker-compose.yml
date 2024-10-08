@@ -1,0 +1,69 @@
+  services:
+    sentry:
+      image: sentry:latest
+      ports:
+        - "9010:9000"
+      environment:
+        - SENTRY_REDIS_HOST=airflow-redis
+        - SENTRY_REDIS_PORT=6379
+        - SENTRY_REDIS_DB=1
+        - SENTRY_SECRET_KEY=29frve^5_84h^nrfe)qgi0as5pos-nbcvxm!fled59hmqqhz_0
+        - SENTRY_POSTGRES_HOST=airflow-postgres
+        - SENTRY_POSTGRES_PORT=5432
+        - SENTRY_DB_NAME=sentry
+        - SENTRY_DB_USER=sentry
+        - SENTRY_DB_PASSWORD=sentry
+        - SENTRY_SECRET_KEY=i*2p&1u#r7rq0l0x-#j^0dq=(b3qswjqzf)lsiaud0h88(8%tt
+      command: ["/bin/bash", "-c", "sentry upgrade --noinput && sentry createuser --email admin@example.com --password mypassword --superuser || true && sentry run web"]
+      volumes:
+        - ./sentry.conf.py:/etc/sentry/sentry.conf.py
+        - spark_spark_config:/opt/spark
+      networks:
+        - data-pipeline
+
+    worker:
+      image: sentry:latest
+      command: ["/bin/bash", "-c","sentry run worker"]
+      environment:
+        - SENTRY_REDIS_HOST=airflow-redis
+        - SENTRY_REDIS_PORT=6379
+        - SENTRY_REDIS_DB=1
+        - SENTRY_SECRET_KEY=29frve^5_84h^nrfe)qgi0as5pos-nbcvxm!fled59hmqqhz_0
+        - SENTRY_POSTGRES_HOST=airflow-postgres
+        - SENTRY_POSTGRES_PORT=5432
+        - SENTRY_DB_NAME=sentry
+        - SENTRY_DB_USER=sentry
+        - SENTRY_DB_PASSWORD=sentry
+        - SENTRY_SECRET_KEY=i*2p&1u#r7rq0l0x-#j^0dq=(b3qswjqzf)lsiaud0h88(8%tt
+      user: "1000:1000"  # Add this to run the worker as a non-root user
+      volumes:
+        - ./sentry.conf.py:/etc/sentry/sentry.conf.py
+        - spark_spark_config:/opt/spark
+      networks:
+        - data-pipeline
+
+    cron:
+      image: sentry:latest
+      command: ["/bin/bash", "-c", "sentry run cron"]
+      environment:
+        - SENTRY_REDIS_HOST=airflow-redis
+        - SENTRY_POSTGRES_HOST=airflow-postgres
+        - SENTRY_DB_USER=sentry
+        - SENTRY_DB_PASSWORD=sentry
+        - SENTRY_SECRET_KEY=i*2p&1u#r7rq0l0x-#j^0dq=(b3qswjqzf)lsiaud0h88(8%tt
+      user: "1000:1000"  # Add this to run the worker as a non-root user
+      volumes:
+        - ./sentry.conf.py:/etc/sentry/sentry.conf.py
+        - spark_spark_config:/opt/spark
+      networks:
+        - data-pipeline
+
+  volumes:
+    spark_spark_config:
+      external: true  
+  networks:
+    data-pipeline:
+      external: true
+
+
+      

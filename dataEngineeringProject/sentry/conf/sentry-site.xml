@@ -1,0 +1,31 @@
+<configuration>
+  <property>
+    <name>sentry.service.server.rpc-address</name>
+    <value>sentry</value> <!-- Sentry service container name -->
+  </property>
+  
+  <property>
+    <name>sentry.service.server.rpc-port</name>
+    <value>8038</value>
+  </property>
+
+  <property>
+    <name>sentry.hive.provider.backend.db</name>
+    <value>org.apache.sentry.provider.db.SimpleDBProviderBackend</value>
+  </property>
+  
+  <property>
+    <name>sentry.store.jdbc.url</name>
+    <value>jdbc:mysql://mysql:3306/sentry</value> <!-- MySQL service used by Sentry -->
+  </property>
+
+  <property>
+    <name>sentry.store.jdbc.user</name>
+    <value>sentry</value>
+  </property>
+
+  <property>
+    <name>sentry.store.jdbc.password</name>
+    <value>sentrypassword</value>
+  </property>
+</configuration>

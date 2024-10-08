@@ -1,0 +1,25 @@
+{
+  "name": "hdfs-sink",
+  "config": {
+    "connector.class": "io.confluent.connect.hdfs.HdfsSinkConnector",
+    "tasks.max": "1",
+    "topics": "data-ingestion-topic",
+    "store.url": "hdfs://namenode:9000",
+    "topics.dir": "/kafka/topics",
+    "logs.dir": "/kafka/logs",
+    "flush.size": "1000000", 
+    "flush.interval.ms": "300000",  
+    "rotate.interval.ms": "3600000",  
+    "rotate.schedule.interval.ms": "60000", 
+    "timezone": "Europe/Amsterdam",
+    "hdfs.authentication.kerberos": "false",
+    "hadoop.conf.dir": "/etc/hadoop/",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "key.converter.schemas.enable": "true",
+    "value.converter.schemas.enable": "true",
+    "value.converter.schema.registry.url": "http://schema-registry:8081",
+    "format.class": "io.confluent.connect.hdfs.avro.AvroFormat",
+    "partitioner.class": "io.confluent.connect.storage.partitioner.DefaultPartitioner" 
+  }
+}

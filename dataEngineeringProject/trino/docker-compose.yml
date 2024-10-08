@@ -1,0 +1,41 @@
+services:
+  trino-coordinator:
+    build:
+      context: ./coordinator
+    container_name: trino-coordinator
+    ports:
+      - "8082:8080"  # Changed to avoid conflict with Airflow
+    volumes:
+      - ./coordinator/config:/etc/trino
+      - hadoop_hadoop_config:/etc/hadoop
+      - ./coordinator/config/hive.properties:/etc/trino/catalog/hive.properties
+    environment:
+      JAVA_OPTS: -Xmx16G
+    networks:
+      - data-pipeline
+
+  trino-worker:
+    build:
+      context: ./worker
+    container_name: trino-worker
+    ports:
+      - "8091:8081"  
+    depends_on:
+      - trino-coordinator
+    volumes:
+      - ./worker/config:/etc/trino
+      - ./coordinator/config/hive.properties:/etc/trino/catalog/hive.properties
+      - hadoop_hadoop_config:/etc/hadoop
+    environment:
+      JAVA_OPTS: -Xmx16G
+    networks:
+      - data-pipeline
+  
+networks:
+  data-pipeline:
+    external: true
+
+      
+volumes:
+  hadoop_hadoop_config:
+    external: true

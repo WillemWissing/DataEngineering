@@ -1,0 +1,94 @@
+services:
+  zookeeper:
+    image: zookeeper:3.7.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+    networks:
+      - data-pipeline
+    dns_opt:
+      - "options timeout:3"  # Increase timeout duration
+      - "options attempts:5"  # Increase retry attempt
+  
+
+  kafka:
+    build:
+      context: kafka
+      dockerfile: Dockerfile
+    container_name: kafka
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_HOST://localhost:9093,PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092, PLAINTEXT_HOST://0.0.0.0:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1 
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - data-pipeline
+    depends_on:
+      - zookeeper
+
+  schema-registry:
+    build:
+      context: schema-registry
+      dockerfile: Dockerfile
+    container_name: schema-registry
+    ports:
+      - "8087:8081"
+      - "8088:8088"
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081,http://localhost:8088
+    networks:
+      - data-pipeline
+    depends_on:
+      - kafka
+
+  kafka-connect:
+    build:
+      context: kafka-connect
+      dockerfile: Dockerfile
+    container_name: kafka-connect
+    environment:
+      KAFKA_CONNECT_LISTENERS: "http://0.0.0.0:8083"
+      CONNECT_BOOTSTRAP_SERVERS: 'kafka:9092'
+      CONNECT_REST_ADVERTISED_HOST_NAME: 'kafka-connect'
+      CONNECT_GROUP_ID: 'compose-connect-group'
+      CONNECT_CONFIG_STORAGE_TOPIC: 'docker-connect-configs'
+      CONNECT_OFFSET_STORAGE_TOPIC: 'docker-connect-offsets'
+      CONNECT_STATUS_STORAGE_TOPIC: 'docker-connect-status'
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+      CONNECT_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+      CONNECT_INTERNAL_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+      CONNECT_INTERNAL_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+      CONNECT_LOG4J_ROOT_LOGLEVEL: 'INFO'
+      CONNECT_PLUGIN_PATH: '/etc/kafka-connect/plugins,/usr/share/filestream-connectors,/usr/share/confluent-hub-components'
+    volumes:
+      - ./kafka-connect/config:/etc/kafka-connect
+    ports:
+      - "8084:8083"
+    depends_on:
+      - kafka
+    networks:
+      - data-pipeline
+  
+
+networks:
+  data-pipeline:
+    external: true
+
+      
+volumes:
+  kafka-data:
+  kafka-connect-data:
